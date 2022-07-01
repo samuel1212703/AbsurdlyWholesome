@@ -1,9 +1,11 @@
 import openai
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def generate_comment(user_input):
-    openai.api_key = "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"
-    prompt = f"You: {user_input}\nSmart and Wholesome Friend:"
+    openai.api_key = os.getenv('APENAI_KEY')
+    prompt = f"You: {user_input}\nQuirky and Wholesome Friend:"
     return openai.Completion.create(
         model="text-davinci-002",
         prompt=prompt,

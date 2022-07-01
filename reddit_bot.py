@@ -1,37 +1,39 @@
 from logging import exception
 from tracemalloc import stop
 import praw
-import config
 import time
 import os
 from munk import *
 import random
 
 
-bot_name = "AbsurdlyWholesome"
+bot_name = os.getenv('BOT_NAME')
+password = os.getenv('PASSWORD')
+client_id = os.getenv('CLIENT_ID')
+client_secret = os.getenv('CLIENT_SECRET')
 
-
-list_of_subreddits = ["bestoflegaladvice", "discussion", "dankmemes", "memes", "art",
-                      "illustration", "oldschoolcool", "interestingasfuck", "mildlyinteresting", "facepalm"]
+# art subreddits doesnt work, as the both claims credit for all the works (:D)
+list_of_subreddits = ["bestoflegaladvice", "discussion", "dankmemes", "memes", "oldschoolcool", "interestingasfuck", "mildlyinteresting", "facepalm"]
 
 
 def bot_login():
-    r = praw.Reddit(username=config.username, password=config.password, client_id=config.client_id,
-                    client_secret=config.client_secret, user_agent="Absurdly Wholesome v0.1")
+    r = praw.Reddit(username=bot_name, password=password, client_id=client_id,
+                    client_secret=client_secret, user_agent="Absurdly Wholesome v0.1")
     print("Log in successful")
     return r
 
 
 def document_karma():
-    bot_account = r.redditor(bot_name)
+    bot_account = r.redditor(str(bot_name))
 
     from datetime import date
     today = date.today()
 
+    print(bot_account)
     data = [today, bot_account.link_karma, bot_account.comment_karma]
 
     import csv
-    with open('karma.csv', 'w') as file:
+    with open('karma.csv', 'a') as file:
         writer = csv.writer(file)
         writer.writerow(data)
 

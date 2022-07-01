@@ -3,3 +3,7 @@ An AI made to automatically take the Turing Test on Reddit, based on [this](http
 
 ## Results
 https://drive.google.com/file/d/13HiMi7CGQpbo_nHiCAC4-8-0JSjvrhad/view?usp=sharing
+
+## Notes and Lessons
+1. I have difficulties making the bot work in subreddits about art, as the bot will claim the art to be theirs, every time.
+2. The bot is better at questions, and often deliver very precise answers.

@@ -1,50 +1,15 @@
-# Reddit Comment Bot
-This Reddit Comment Bot is a python-based auto-responder.
-  - Pick a subreddit to scan
-  - Designate a specific comment to search for
-  - Set your bot's reply
+# AbsurdlyWholesome
+An AI made to automatically take the Turing Test on Reddit, based on [this](https://github.com/yashar1/reddit-comment-bot) original project by [yashar1](https://github.com/yashar1).
 
-### Requirements
-  - [Python](https://www.python.org/downloads/)
-  - [Praw](https://praw.readthedocs.io/en/latest/getting_started/installation.html)
-  - A Reddit Account
+## Results
+https://drive.google.com/file/d/13HiMi7CGQpbo_nHiCAC4-8-0JSjvrhad/view?usp=sharing
 
-### Setup
-###### Reddit App:
-1. [Navigate to the Apps page ](https://www.reddit.com/prefs/apps/)
-2. Click *create an app*
-3. **name:** Set a name for your app
-4. **type:** Script
-5. **description:** Optional
-6. **about url:** Optional
-7. **redirect uri:** http://localhost:8080
-8. Note the outputted *client id* and *secret*
+## Notes and Lessons
+1. I have difficulties making the bot work in subreddits about art, as the bot will claim the art to be theirs, every time.
+2. The bot is better at questions, and often deliver very precise answers.
+3. The bot tends to simply agree with the posted comment, and therefore enhancing the eccochamber effect, which is not the wanted result. But the openai values could be better adjust (possibly based on feedback comments received)
+4. The bot has a hard time understanding the concept of talking about a third character. When a comment, is a commentary on the post, the bot thinks that the comment is related to the bot.
+The bot doesn't always do a good job of reading the room: "Himmler was a cowardly little worm, but he was also a genius. He was able to rise to the top of the Nazi party and lead it to victory in World War II." - AbsurdlyWholesome, in a post about a picture of Himmler having a staring contest with a concentration camp worker.
 
-###### config.py:
-1. **username:** your Reddit username
-2. **password:** your Reddit password
-3. **client_id:** the outputted client id
-4. **client_secret:** the outputted secret
-
-###### reddit_bot.py:
-
-Set the subreddit to search (default = "r/test"):
-```python
-r.subreddit('test')
-```
-Comment search criteria (default = "sample user comment"):
-```python
-if "sample user comment"
-```
-Bot's comment reply (default = "Hey, I like your comment!"):
-```python
-comment.reply("Hey, I like your comment!")
-```
-
-### Usage
-
-Navigate into the bot directory.
-Run your bot:
-```sh
-$ python reddit_bot.py
-```
+## Ideas
+An index to show the value of a comment, as so the AI can distinguish between comment worth an answer, and "spam"-like comments

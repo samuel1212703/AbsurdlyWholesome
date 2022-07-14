@@ -1,39 +1,31 @@
-from logging import exception
-from tracemalloc import stop
 import praw
 import time
 import os
-from munk import *
-import munk
+from munk import generate_comment
 import random
+from difflib import SequenceMatcher
 
-# The dream is that fully_dynamic would be on always, but too much math is required (hit me up if you got something)
-fully_dynamic = True
-continous_subreddit_optimization = True
-use_custom_subreddit_list = False
-# Setting this to 10, means 1 in 10 chance to select a random subreddit
-random_subreddit_rate = 10
+use_custom_subreddit_list = True
+# Setting this to 10, means 1 in 10 chance to select a random subreddit (lower in the beginning, higher for stable use when subreddit ratings are calculated)
+random_subreddit_rate = 3  # Only useful if use_custom_subreddit_list is set to True
 max_comments_on_single_thread = 2
 list_of_excluded_subreddit = ["interestingasfuck", "oldschoolcool", "art"]
-
-if(fully_dynamic):
-    continous_subreddit_optimization = True
-    use_custom_subreddit_list = False
-    random_subreddit_rate = 10
-    max_comments_on_single_thread = 2
 
 bot_name = "AbsurdlyWholesome"
 username = os.getenv('BOT_NAME')
 password = os.getenv('PASSWORD')
 client_id = os.getenv('CLIENT_ID')
 client_secret = os.getenv('CLIENT_SECRET')
+should_wait = True
+
+replies_filename = "comments_replied_to.txt"
 
 # Art subreddits doesnt work, as the both claims credit for all the works (:D)
 # Oldschoolcool and subreddits with similar advanced and abstract topics, doesnt work well either, and often leads to angering people
 list_of_subreddits = {}
 
-# Get subreddit ratings from file
-with open("subreddit_rating.txt") as f:
+# Get subreddit ratings from file, create if doesn't exist
+with open("subreddit_rating.txt", "a+") as f:
     for line in f.readlines():
         list_of_subreddits.update(
             {line.split(":")[0]: float(line.split(":")[1].replace("\n", ""))})
@@ -43,9 +35,9 @@ def bot_login():
     try:
         r = praw.Reddit(username=username, password=password, client_id=client_id,
                         client_secret=client_secret, user_agent="Absurdly Wholesome v0.1")
-        print("Log in successful")
-    except:
-        print("Log in failed, check credentials. Exiting...")
+        print("\n!!!Log in: successful")
+    except e:
+        print("Log in: failed\nError: {e}\nExiting...")
         exit()
     return r
 
@@ -65,16 +57,40 @@ def document_karma():
             writer.writerow(data)
 
 
-def run_bot(r, comments_replied_to, current_subreddit):
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
 
+
+def generate_response_comment(comment, parent_comment, is_self_post=False):
+    if(is_self_post):
+        return str(generate_comment(
+            comment.body, parent_comment.body[0]), True)
+    try:
+        return str(generate_comment(
+            comment.body, parent_comment.body[0]))
+    except AttributeError:
+        return str(generate_comment(
+            comment.body))
+
+
+def document_comment_and_response(comment, comment_reply):
+    with open(replies_filename, "a") as f:
+        f.write(comment.id + "\n")
+    with open("reply_history.txt", "a") as f:
+        user_text = comment.body.encode('utf-8')
+        f.write("########################\n" + str(user_text) +
+                "\n" + str(comment_reply) + "\n\n")
+
+
+def run_bot(r, comments_replied_to, current_subreddit, should_bot_wait):
     comment_amount = 0
-
     document_karma()
 
-    for comment in r.subreddit(current_subreddit).comments(limit=random.randint(1, max_comments_on_single_thread)):
-        if comment.author.is_mod == False and len(comment.body) > 80 and comment.id not in comments_replied_to and comment.author != r.user.me() and comment.is_submitter == False and "bot" not in str(comment.author):
-            comment_amount += 1
-            print("\n######Comment######\n",
+    print(current_subreddit)
+
+    for comment in r.subreddit(str(current_subreddit)).comments(limit=random.randint(1, max_comments_on_single_thread)):
+        if comment.author.is_mod == False and len(comment.body) > 20 and comment.id not in comments_replied_to and comment.author != r.user.me() and comment.is_submitter == False and "bot" not in str(comment.author):
+            print("\n############Comment######\n",
                   comment.body)
             print("\n---Generating response...")
 
@@ -84,45 +100,49 @@ def run_bot(r, comments_replied_to, current_subreddit):
                 parent_comment = comment.parent()
 
             # Generate response and reply (could be better programmed)
-            try:
-                comment_reply = str(generate_comment(
-                    comment.body, parent_comment.body[0]))
-            except AttributeError:
-                comment_reply = str(generate_comment(
-                    comment.body))
+            comment_reply = generate_response_comment(comment, parent_comment, comment.is_submitter)
 
-            print("Response generated: " + comment_reply)
+            # Last checks before sendoff: did the bot just copy the exact or near exact sentence?
+            if(comment_reply != "" and similar(comment.body, comment_reply) > 0.7):
+                print("\n---Comment is too similar to the original, skipping...")
+                break
+
+            # Reply to comment
+            print("\nResponse generated: " + comment_reply)
             comment.reply(body=comment_reply)
             comments_replied_to.append(comment.id)
 
             # Document comment and response in a separate file
-            with open("comments_replied_to.txt", "a") as f:
-                f.write(comment.id + "\n")
-            with open("reply_history.txt", "a") as f:
-                user_text = comment.body.encode('utf-8')
-                f.write("########################\n" + str(user_text) +
-                        "\n" + comment_reply + "\n\n")
+            document_comment_and_response(comment, parent_comment)
 
-    # Make sure the bot makes at least one comm
-    if(comment_amount == 0):
-        print("\n---No comments found matching requirements, continueing...\n")
+            comment_amount += 1
+
+    # If no comment was made, no need to wait
+    if(comment_amount):
+        should_bot_wait = True
+    else:
+        should_bot_wait = False  # If the bot didn't make any comments, it should not wait
+        print("\n---No comments found matching requirements, continueing...")
+
+    return should_bot_wait
 
 
 def get_saved_comments():
-    if not os.path.isfile("comments_replied_to.txt"):
+    if not os.path.isfile(replies_filename):
         comments_replied_to = []
     else:
-        with open("comments_replied_to.txt", "r") as f:
+        with open(replies_filename, "r") as f:
             comments_replied_to = list(filter(None, f.read().split("\n")))
     return comments_replied_to
 
 
 def weighted_subreddit_selection():
-    subreddit_ratings_cummulative = list_of_subreddits.copy()
+    # Document ratings in a separate file
+    document_subreddit_rating(list_of_subreddits)
 
     # Reset values in weighted dictionary and make a copy containing amounts of comments
     for i in list_of_subreddits:
-        list_of_subreddits[i] = 0
+        list_of_subreddits[i] = 0.0
     subreddit_comment_amount = list_of_subreddits.copy()
 
     for comment in r.redditor(bot_name).comments.new(limit=None):
@@ -142,53 +162,52 @@ def weighted_subreddit_selection():
             list_of_subreddits[i] = list_of_subreddits[i] / \
                 subreddit_comment_amount[i]
 
-    # # One in hundred chance to select a random subreddit
-    # if random.randint(0, random_subreddit_rate) == 0:
-    #     if(use_custom_subreddit_list):
-    #         return random.choice(list_of_subreddits)[0]
-    #     else:
-    #         # MIGHT NOT WORK CORRECLY
-    #         return r.subreddit("all").hot(limit=1)[0].subreddit.display_name
-
-    # Document ratings in a separate file
-    document_subreddit_rating(subreddit_ratings_cummulative)
-
-    # Return the subreddit with the highest average karma
-    return random.choices(list(list_of_subreddits.keys()), weights=list(list_of_subreddits.values()), k=1)[0]
+    if random.randint(0, random_subreddit_rate) == 1 or use_custom_subreddit_list == False:
+        print("\n---Random subreddit selection")
+        return r.random_subreddit().display_name
+    else:
+        # Return the subreddit with the highest average karma based on weights
+        return random.choices(list(list_of_subreddits.keys()), weights=list(list_of_subreddits.values()), k=1)[0]
 
 
 def document_subreddit_rating(subreddit_ratings):
     sorted_list_of_subreddits = sorted(
         subreddit_ratings.items(), key=lambda x: x[1], reverse=True)
-    with open("subreddit_rating.txt", "w") as f:
+    with open("subreddit_rating.txt", "w+") as f:
         var = 0
-        for i in sorted_list_of_subreddits:
+        for _ in sorted_list_of_subreddits:
             f.write(sorted_list_of_subreddits[var][0] + ": " + str(
                 sorted_list_of_subreddits[var][1]) + "\n")
             var += 1
 
 
+round_count = 0
+current_subreddit = ""
+
 if __name__ == '__main__':
     r = bot_login()
     comments_replied_to = get_saved_comments()
-
+    print("\n---Starting bot...")
     while True:
+        round_count += 1
+        print("ROUND: #" + str(round_count))
         try:
             # Select a subreddit to comment on
-            if continous_subreddit_optimization:
+            while current_subreddit in list_of_excluded_subreddit or current_subreddit == "":
+                print("\n---Trying to generate a subreddit...")
                 current_subreddit = weighted_subreddit_selection()
-            else:
-                current_subreddit = list_of_subreddits.values()[random.randint(
-                    1, len(list_of_subreddits.values())-1)]
 
-            print("!!!Subreddit: " + current_subreddit)
-
+            print("\n!!!Subreddit: " + current_subreddit)
             # Comment on the selected subreddit
-            run_bot(r, comments_replied_to, current_subreddit)
+            should_wait = run_bot(r, comments_replied_to,
+                                  current_subreddit, should_wait)
         except praw.exceptions.RedditAPIException as e:
-            print("Reddit api break: " + str(e))
+            print("\nReddit api break: " + str(e))
 
-        # Sleep for a while to simulate human behaviour, and avoid spam
-        sleep_time = random.randint(10, 30)
-        print("\n---Sleeping for " + str(sleep_time) + " seconds...\n")
-        time.sleep(sleep_time)
+        if(should_wait):
+            # Sleep for a number of seconds, to simulate human behaviour and avoid spam
+            sleep_time = random.randint(25, 100)
+            print("\n---Sleeping for " + str(sleep_time) + " seconds...")
+            time.sleep(sleep_time)
+
+        should_wait = True

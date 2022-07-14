@@ -3,19 +3,25 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-# "Clever and Agreeable Friend", "Wholesome Quirky Moral Friend", "Quirky Morally Supportive Friend"
+###################################################################################################################################
+# Use the bot a few times with different names, and then you can name the bot something accordingly, or whatever you come up with #
+###################################################################################################################################
+
+# "Clever and Agreeable Friend", "Wholesome Quirky Moral Friend", "Quirky Morally Supportive Friend", "AI", "Friend"
 bot_description = "Quirky Morally Supportive Me"
 
 
-def generate_comment(user_input, parent_comment=""):
+def generate_comment(user_input, parent_comment="", is_self=False):
     openai.api_key = os.getenv('APENAI_KEY')
 
     if(parent_comment == ""):
         prompt = f"You: {user_input}\n" + bot_description + ":"
-    else:
-        prompt = f"Your Friend: {parent_comment}\nYou: {user_input}\n" + \
+    elif(is_self):
+        prompt = bot_description + ": " + parent_comment + "\nYou: {user_input}\n" + \
             bot_description + ":"
-    print("\n######Prompt######\n", prompt)
+    else:
+        prompt = f"Person: {parent_comment}\nYou: {user_input}\n" + \
+            bot_description + ":"
     return openai.Completion.create(
         model="text-davinci-002",  # text-davinci-002 - text-curie-001
         prompt=prompt,

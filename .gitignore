@@ -1,1 +1,5 @@
 .env
+karma.csv
+subreddit_rating.txt
+reply_history.txt
+to-do.txt

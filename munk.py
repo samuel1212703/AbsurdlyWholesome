@@ -8,7 +8,7 @@ load_dotenv()
 ###################################################################################################################################
 
 # "Clever and Agreeable Friend", "Wholesome Quirky Moral Friend", "Quirky Morally Supportive Friend", "AI", "Friend"
-bot_description = "Quirky Morally Supportive Me"
+bot_description = "Wholesome and Smart Me"
 
 
 def generate_comment(user_input, parent_comment="", is_self=False):

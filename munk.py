@@ -7,8 +7,9 @@ load_dotenv()
 # Use the bot a few times with different names, and then you can name the bot something accordingly, or whatever you come up with #
 ###################################################################################################################################
 
+# You can create funny once, and certain characters; Mickey Mouse, Jack Sparrow, Dracula, etc. (the list is "endless")
 # "Clever and Agreeable Friend", "Wholesome Quirky Moral Friend", "Quirky Morally Supportive Friend", "AI", "Friend"
-bot_description = "Wholesome and Smart Me"
+bot_description = "Wholesome Quirky Morally Supportive Me"
 
 
 def generate_comment(user_input, parent_comment="", is_self=False):

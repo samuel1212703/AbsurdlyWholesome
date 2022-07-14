@@ -5,16 +5,16 @@ from munk import generate_comment
 import random
 from difflib import SequenceMatcher
 
-# Set to false in the beginning, and then later, when you have enough data 
-# on which subreddits, you can lower the search rate by setting it to true 
-# (setting to true also increases the chance of the bot responding to a comment, 
+# Set to false in the beginning, and then later, when you have enough data
+# on which subreddits, you can lower the search rate by setting it to true
+# (setting to true also increases the chance of the bot responding to a comment,
 # that was made from the bots comment, thereby starting a conversation)
 use_custom_subreddit_list = False
 # Setting this to 10, means 1 in 10 chance to select a random subreddit (lower in the beginning, higher for stable use when subreddit ratings are calculated)
 random_subreddit_rate = 3  # Only useful if use_custom_subreddit_list is set to True
-max_comments_on_single_thread = 25
-max_search_on_thread = 4
-sleep_time = random.randint(45, 180)  # In seconds
+max_comments_on_single_thread = 20
+max_search_on_thread = 1
+max_sleep_time = 180
 list_of_excluded_subreddit = ["interestingasfuck", "oldschoolcool", "art"]
 
 bot_name = "AbsurdlyWholesome"
@@ -100,19 +100,24 @@ def run_bot(r, comments_replied_to, current_subreddit, should_bot_wait):
                   comment.body)
             print("\n---Generating response...")
 
-            # Check for parent comment
-            parent_comment = ""
-            if(comment.parent() != None):
-                parent_comment = comment.parent()
+            while True:
+                try:
+                    # Check for parent comment
+                    parent_comment = ""
+                    if(comment.parent() != None):
+                        parent_comment = comment.parent()
 
-            # Generate response and reply (could be better programmed)
-            comment_reply = generate_response_comment(
-                comment, parent_comment, comment.is_submitter)
+                    # Generate response and reply (could be better programmed)
+                    comment_reply = generate_response_comment(
+                        comment, parent_comment, comment.is_submitter)
 
-            # Last checks before sendoff: did the bot just copy the exact or near exact sentence?
-            if(comment_reply != "" and similar(comment.body, comment_reply) > 0.7):
-                print("\n---Comment is too similar to the original, skipping...")
-                break
+                    # Last checks before sendoff: did the bot just copy the exact or near exact sentence?
+                    if(comment_reply != "" and similar(comment.body, comment_reply) > 0.7):
+                        print(
+                            "\n---Comment is too similar to the original, skipping...")
+                    break
+                except Exception:
+                    time.sleep(10)
 
             # Reply to comment
             print("\nResponse generated: " + comment_reply)
@@ -154,13 +159,10 @@ def document_subreddit_rating(subreddit_ratings):
             f.write(subreddits[0] + ": " + str(
                 subreddits[1]) + "\n")
 
-def weighted_subreddit_selection():
-    # Reset values in weighted dictionary and make a copy containing amounts of comments
-    for i in list_of_subreddits:
-        list_of_subreddits[i] = 0.0
-    subreddit_comment_amount = list_of_subreddits.copy()
 
+def update_subreddit_data(subreddit_comment_amount):
     for comment in r.redditor(bot_name).comments.new(limit=None):
+        # Update the list and comment amounts locally
         if comment.subreddit.display_name not in list_of_excluded_subreddit and comment.subreddit.display_name not in list_of_subreddits.keys():
             list_of_subreddits.update({comment.subreddit.display_name: 0})
             subreddit_comment_amount.update(
@@ -171,13 +173,20 @@ def weighted_subreddit_selection():
                 list_of_subreddits[subreddit] += comment.score
                 subreddit_comment_amount[subreddit] += 1
 
+def weighted_subreddit_selection(current_round):
+    # Reset values in weighted dictionary and make a copy containing amounts of comments
+    for i in list_of_subreddits:
+        list_of_subreddits[i] = 0.0
+    subreddit_comment_amount = list_of_subreddits.copy()
+
+    if(current_round % 1000 == 0):
+        update_subreddit_data(subreddit_comment_amount)
+
     # Calculate average rate of karma for subreddits
     for i in list_of_subreddits.keys():
         if subreddit_comment_amount[i] != 0:
             list_of_subreddits[i] = list_of_subreddits[i] / \
                 subreddit_comment_amount[i]
-
-    print(list_of_subreddits)
 
     # Document ratings in a separate file
     document_subreddit_rating(list_of_subreddits)
@@ -204,7 +213,7 @@ if __name__ == '__main__':
             # Select a subreddit to comment on
             while current_subreddit in list_of_excluded_subreddit or current_subreddit == "":
                 print("\n---Trying to generate a subreddit...")
-                current_subreddit = weighted_subreddit_selection()
+                current_subreddit = weighted_subreddit_selection(round_count)
 
             # Comment on the selected subreddit
             should_wait = run_bot(r, comments_replied_to,
@@ -214,6 +223,7 @@ if __name__ == '__main__':
 
         if(should_wait):
             # Sleep for a number of seconds, to simulate human behaviour and avoid spam
+            sleep_time = random.randint(max_sleep_time/2, max_sleep_time)  # In seconds
             print("\n---Sleeping for " + str(sleep_time) + " seconds...")
             time.sleep(sleep_time)
 

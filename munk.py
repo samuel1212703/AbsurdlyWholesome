@@ -4,10 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # "Clever and Agreeable Friend", "Wholesome Quirky Moral Friend", "Quirky Morally Supportive Friend"
-bot_description = "Quirky Morally Supportive Friend"
+bot_description = "Quirky Morally Supportive Me"
 
 
-def generate_comment(user_input, parent_comment):
+def generate_comment(user_input, parent_comment=""):
     openai.api_key = os.getenv('APENAI_KEY')
 
     if(parent_comment == ""):
@@ -15,7 +15,7 @@ def generate_comment(user_input, parent_comment):
     else:
         prompt = f"Your Friend: {parent_comment}\nYou: {user_input}\n" + \
             bot_description + ":"
-    print("Prompt: ", prompt)
+    print("\n######Prompt######\n", prompt)
     return openai.Completion.create(
         model="text-davinci-002",  # text-davinci-002 - text-curie-001
         prompt=prompt,

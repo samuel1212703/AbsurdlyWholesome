@@ -7,9 +7,10 @@ from munk import *
 import munk
 import random
 
-fully_dynamic = False
+# The dream is that fully_dynamic would be on always, but too much math is required (hit me up if you got something)
+fully_dynamic = True
 continous_subreddit_optimization = True
-use_custom_subreddit_list = True
+use_custom_subreddit_list = False
 # Setting this to 10, means 1 in 10 chance to select a random subreddit
 random_subreddit_rate = 10
 max_comments_on_single_thread = 2
@@ -19,7 +20,7 @@ if(fully_dynamic):
     continous_subreddit_optimization = True
     use_custom_subreddit_list = False
     random_subreddit_rate = 10
-    max_comments_on_single_thread = 3
+    max_comments_on_single_thread = 2
 
 bot_name = "AbsurdlyWholesome"
 username = os.getenv('BOT_NAME')
@@ -31,6 +32,7 @@ client_secret = os.getenv('CLIENT_SECRET')
 # Oldschoolcool and subreddits with similar advanced and abstract topics, doesnt work well either, and often leads to angering people
 list_of_subreddits = {}
 
+# Get subreddit ratings from file
 with open("subreddit_rating.txt") as f:
     for line in f.readlines():
         list_of_subreddits.update(
@@ -38,9 +40,13 @@ with open("subreddit_rating.txt") as f:
 
 
 def bot_login():
-    r = praw.Reddit(username=username, password=password, client_id=client_id,
-                    client_secret=client_secret, user_agent="Absurdly Wholesome v0.1")
-    print("Log in successful")
+    try:
+        r = praw.Reddit(username=username, password=password, client_id=client_id,
+                        client_secret=client_secret, user_agent="Absurdly Wholesome v0.1")
+        print("Log in successful")
+    except:
+        print("Log in failed, check credentials. Exiting...")
+        exit()
     return r
 
 
@@ -61,24 +67,31 @@ def document_karma():
 
 def run_bot(r, comments_replied_to, current_subreddit):
 
+    comment_amount = 0
+
     document_karma()
 
     for comment in r.subreddit(current_subreddit).comments(limit=random.randint(1, max_comments_on_single_thread)):
         if comment.author.is_mod == False and len(comment.body) > 80 and comment.id not in comments_replied_to and comment.author != r.user.me() and comment.is_submitter == False and "bot" not in str(comment.author):
-            print("########################\n\nComment:",
+            comment_amount += 1
+            print("\n\n######Comment######\n",
                   comment.body)
-            print("Generating response...")
+            print("\n---Generating response...")
 
             # Check for parent comment
             parent_comment = ""
             if(comment.parent() != None):
                 parent_comment = comment.parent()
-            
-            # Generate response and reply
-            comment_reply = str(generate_comment(
-                comment.body, parent_comment.body))
 
-            print("Response generated:" + comment_reply + "\n######")
+            # Generate response and reply (could be better programmed)
+            try:
+                comment_reply = str(generate_comment(
+                    comment.body, parent_comment.body[0]))
+            except AttributeError:
+                comment_reply = str(generate_comment(
+                    comment.body))
+
+            print("Response generated: " + comment_reply)
             comment.reply(body=comment_reply)
             comments_replied_to.append(comment.id)
 
@@ -89,6 +102,10 @@ def run_bot(r, comments_replied_to, current_subreddit):
                 user_text = comment.body.encode('utf-8')
                 f.write("########################\n" + str(user_text) +
                         "\n" + comment_reply + "\n\n")
+
+    # Make sure the bot makes at least one comm
+    if(comment_amount == 0):
+        print("\n---No comments found matching requirements, continueing...\n")
 
 
 def get_saved_comments():
@@ -101,6 +118,8 @@ def get_saved_comments():
 
 
 def weighted_subreddit_selection():
+    subreddit_ratings_cummulative = list_of_subreddits.copy()
+
     # Reset values in weighted dictionary and make a copy containing amounts of comments
     for i in list_of_subreddits:
         list_of_subreddits[i] = 0
@@ -123,24 +142,24 @@ def weighted_subreddit_selection():
             list_of_subreddits[i] = list_of_subreddits[i] / \
                 subreddit_comment_amount[i]
 
-    # One in hundred chance to select a random subreddit
-    if random.randint(0, random_subreddit_rate) == 0:
-        if(use_custom_subreddit_list):
-            return random.choice(list_of_subreddits)[0]
-        else:
-            # MIGHT NOT WORK CORRECLY
-            return r.subreddit("all").hot(limit=1)[0].subreddit.display_name
+    # # One in hundred chance to select a random subreddit
+    # if random.randint(0, random_subreddit_rate) == 0:
+    #     if(use_custom_subreddit_list):
+    #         return random.choice(list_of_subreddits)[0]
+    #     else:
+    #         # MIGHT NOT WORK CORRECLY
+    #         return r.subreddit("all").hot(limit=1)[0].subreddit.display_name
 
     # Document ratings in a separate file
-    document_subreddit_rating()
+    document_subreddit_rating(subreddit_ratings_cummulative)
 
     # Return the subreddit with the highest average karma
     return random.choices(list(list_of_subreddits.keys()), weights=list(list_of_subreddits.values()), k=1)[0]
 
 
-def document_subreddit_rating():
+def document_subreddit_rating(subreddit_ratings):
     sorted_list_of_subreddits = sorted(
-        list_of_subreddits.items(), key=lambda x: x[1], reverse=True)
+        subreddit_ratings.items(), key=lambda x: x[1], reverse=True)
     with open("subreddit_rating.txt", "w") as f:
         var = 0
         for i in sorted_list_of_subreddits:
@@ -162,7 +181,7 @@ if __name__ == '__main__':
                 current_subreddit = list_of_subreddits.values()[random.randint(
                     1, len(list_of_subreddits.values())-1)]
 
-            print("Subreddit: " + current_subreddit)
+            print("!!!Subreddit: " + current_subreddit)
 
             # Comment on the selected subreddit
             run_bot(r, comments_replied_to, current_subreddit)
@@ -171,5 +190,5 @@ if __name__ == '__main__':
 
         # Sleep for a while to simulate human behaviour, and avoid spam
         sleep_time = random.randint(10, 30)
-        print("Sleeping for " + str(sleep_time) + " seconds...")
+        print("\n---Sleeping for " + str(sleep_time) + " seconds...\n")
         time.sleep(sleep_time)

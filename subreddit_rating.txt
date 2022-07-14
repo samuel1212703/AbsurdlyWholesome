@@ -1,4 +1,4 @@
-memes: 1.5657894736842106
+memes: 1.6021978021978023
 shitposting: 1.0
 dankmemes: 0
 writing: 0

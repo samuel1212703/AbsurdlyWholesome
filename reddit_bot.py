@@ -74,7 +74,7 @@ def run_bot(r, comments_replied_to, current_subreddit):
     for comment in r.subreddit(current_subreddit).comments(limit=random.randint(1, max_comments_on_single_thread)):
         if comment.author.is_mod == False and len(comment.body) > 80 and comment.id not in comments_replied_to and comment.author != r.user.me() and comment.is_submitter == False and "bot" not in str(comment.author):
             comment_amount += 1
-            print("\n\n######Comment######\n",
+            print("\n######Comment######\n",
                   comment.body)
             print("\n---Generating response...")
 
